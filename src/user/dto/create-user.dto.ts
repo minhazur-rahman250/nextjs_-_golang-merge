@@ -9,4 +9,6 @@ export class CreateUserDto {
 
   @MinLength(6, { message: 'পাসওয়ার্ড কমপক্ষে 6 অক্ষরের হতে হবে' })
   password: string;
+  role: import("../../common/enums/role.enum.js").Role;
+  
 }

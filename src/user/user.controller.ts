@@ -7,25 +7,24 @@ import {
   Patch,
   Delete,
   ParseIntPipe,
-  Query,
 } from '@nestjs/common';
-import { UserService } from './user.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
-import { QueryUserDto } from './dto/query-user.dto.js';
+import { UserService } from './user.service.js';
+
 
 @Controller('users') // এই controller-এর সব route /users দিয়ে শুরু হবে
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post("/post")
+  @Post()
   create(@Body() dto: CreateUserDto) {
     return this.userService.create(dto);
   }
 
   @Get()
-findAll(@Query() query: QueryUserDto) {
-  return this.userService.findAll(query);
-}
+  findAll() {
+    return this.userService.findAll();
+  }
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
