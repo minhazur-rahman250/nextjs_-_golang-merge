@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module.js';
 import { TeachingModule } from './teaching/teaching.module.js';
 import { LearningModule } from './learning/learning.module.js';
+import { AdminModule } from './admin/admin.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -27,6 +28,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     AuthModule, 
     TeachingModule,
     LearningModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
