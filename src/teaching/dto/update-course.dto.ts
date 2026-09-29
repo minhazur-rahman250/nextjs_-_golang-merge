@@ -1,7 +1,4 @@
-import { CreateCourseDto } from "./create-course.dto.js";
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateLessonDto } from './create-lesson.dto.js';
 
-export class UpdateCourseDto extends (CreateCourseDto) {}
-
-function PartialType(CreateCourseDto: any) {
-    throw new Error("Function not implemented.");
-}
+export class UpdateLessonDto extends PartialType(CreateLessonDto) {}

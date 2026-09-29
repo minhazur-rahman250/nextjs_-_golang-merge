@@ -5,7 +5,7 @@ import { Course } from './entities/course.entity.js';
 import { Lesson } from './entities/lesson.entity.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
 import { QueryCourseDto } from './dto/query-course.dto.js';
-import { UpdateCourseDto } from './dto/update-course.dto.js';
+import { UpdateLessonDto } from './dto/update-course.dto.js';
 import { CreateLessonDto } from './dto/create-lesson.dto.js';
 
 
@@ -70,7 +70,7 @@ export class CourseService {
     return course;
   }
 
-  async update(id: number, dto: UpdateCourseDto, teacherId: number): Promise<Course> {
+  async update(id: number, dto: CreateCourseDto, teacherId: number): Promise<Course> {
     const course = await this.verifyOwnership(id, teacherId);
     Object.assign(course, dto);
     return this.courseRepository.save(course);
@@ -89,7 +89,7 @@ export class CourseService {
 
   async updateLesson(
     lessonId: number,
-    dto: Partial<CreateLessonDto>,
+    dto: UpdateLessonDto,
     teacherId: number,
   ): Promise<Lesson> {
     const lesson = await this.lessonRepository.findOne({

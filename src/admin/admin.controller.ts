@@ -19,6 +19,8 @@ import { Roles } from '../common/decorators/roles.decorator.js';
 import { RolesGuard } from '../common/guards/roles.guards.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { Role } from '../common/enums/role.enum.js';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+
 
 @Controller('admin')
 @UseGuards(AuthGuard('jwt'), RolesGuard)

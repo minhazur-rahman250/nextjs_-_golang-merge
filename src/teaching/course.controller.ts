@@ -18,7 +18,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { Role } from '../common/enums/role.enum.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
-import { UpdateCourseDto } from './dto/update-course.dto.js';
+import { UpdateLessonDto } from './dto/update-course.dto.js';
 import { CreateLessonDto } from './dto/create-lesson.dto.js';
 
 
@@ -55,7 +55,7 @@ export class CourseController {
   @Roles(Role.TEACHER)
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateCourseDto,
+    @Body() dto: CreateCourseDto,
     @CurrentUser() user:any,
   ) {
     return this.courseService.update(id, dto, user.userId);
@@ -84,7 +84,7 @@ export class CourseController {
   @Roles(Role.TEACHER)
   updateLesson(
     @Param('lessonId', ParseIntPipe) lessonId: number,
-    @Body() dto: Partial<CreateLessonDto>,
+    @Body() dto: UpdateLessonDto,
     @CurrentUser() user:any,
   ) {
     return this.courseService.updateLesson(lessonId, dto, user.userId);
