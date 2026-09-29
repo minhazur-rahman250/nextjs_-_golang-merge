@@ -1,36 +1,38 @@
 import { Module } from '@nestjs/common';
-import { createObserveModule } from '@nestjs/observe';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
+import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { UserModule } from './user/user.module.js';
-import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module.js';
 import { TeachingModule } from './teaching/teaching.module.js';
 import { LearningModule } from './learning/learning.module.js';
 import { AdminModule } from './admin/admin.module.js';
 
-export const { ObserveModule, ObserveInstrument } = createObserveModule();
-
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }),
-      TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: '4321',
-      database: 'nest_golang_db',
-      autoLoadEntities: true,
-      synchronize: true,
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'postgres',
+        host: config.get<string>('DB_HOST', 'localhost'),
+        port: config.get<number>('DB_PORT', 5432),
+        username: config.get<string>('DB_USER', 'postgres'),
+        password: config.getOrThrow<string>('DB_PASSWORD'),
+        database: config.getOrThrow<string>('DB_NAME'),
+        autoLoadEntities: true,
+        // production-এ কখনো true না, schema নিজে থেকে বদলাতে দেওয়া বিপজ্জনক
+        synchronize: config.get<string>('NODE_ENV') !== 'production',
+      }),
     }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]), // প্রতি মিনিটে ৬০ request
     UserModule,
-    AuthModule, 
+    AuthModule,
     TeachingModule,
     LearningModule,
     AdminModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
