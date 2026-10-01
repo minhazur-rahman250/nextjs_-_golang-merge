@@ -11,18 +11,18 @@ import { Enrollment } from './entities/enrollment.entity.js';
 import { Progress } from './entities/progress.entity.js';
 import { Course } from '../teaching/entities/course.entity.js';
 import { Lesson } from '../teaching/entities/lesson.entity.js';
+import { NotificationService } from '../notification/notification.service.js';
+import { UserService } from '../user/user.service.js';
 
 @Injectable()
 export class LearningService {
   constructor(
-    @InjectRepository(Enrollment)
-    private enrollmentRepository: Repository<Enrollment>,
-    @InjectRepository(Progress)
-    private progressRepository: Repository<Progress>,
-    @InjectRepository(Course)
-    private courseRepository: Repository<Course>,
-    @InjectRepository(Lesson)
-    private lessonRepository: Repository<Lesson>,
+    @InjectRepository(Enrollment) private enrollmentRepository: Repository<Enrollment>,
+    @InjectRepository(Progress) private progressRepository: Repository<Progress>,
+    @InjectRepository(Course) private courseRepository: Repository<Course>,
+    @InjectRepository(Lesson) private lessonRepository: Repository<Lesson>,
+    private notificationService: NotificationService,
+    private userService: UserService,
   ) {}
 
   async enroll(courseId: number, studentId: number): Promise<Enrollment> {
@@ -36,7 +36,17 @@ export class LearningService {
     if (existing) throw new ConflictException('তুমি আগেই এই course এ enroll করেছ');
 
     const enrollment = this.enrollmentRepository.create({ studentId, courseId });
-    return this.enrollmentRepository.save(enrollment);
+    const saved = await this.enrollmentRepository.save(enrollment);
+
+    // notification পাঠানো - student এর email UserService দিয়ে বের করছি
+    const student = await this.userService.findOne(studentId);
+    await this.notificationService.send(
+      student.email,
+      'COURSE_ENROLLED',
+      `তুমি সফলভাবে "${course.title}" কোর্সে enroll করেছ`,
+    );
+
+    return saved;
   }
 
   async findMyEnrollments(studentId: number): Promise<Enrollment[]> {
@@ -47,7 +57,6 @@ export class LearningService {
     });
   }
 
-  // Ownership check - নিজের enrollment ছাড়া access করা যাবে না
   private async verifyEnrollmentOwnership(
     enrollmentId: number,
     studentId: number,
@@ -67,7 +76,6 @@ export class LearningService {
   ): Promise<Progress> {
     const enrollment = await this.verifyEnrollmentOwnership(enrollmentId, studentId);
 
-    // চেক করি lesson-টা আসলে এই enrollment এর course এর ভেতরেই আছে কিনা
     const lesson = await this.lessonRepository.findOneBy({ id: lessonId });
     if (!lesson) throw new NotFoundException('Lesson পাওয়া যায়নি');
     if (lesson.courseId !== enrollment.courseId) {
