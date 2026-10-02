@@ -37,4 +37,27 @@ export class NotificationService {
       );
     }
   }
+  async markAsRead(notificationId: number): Promise<void> {
+  try {
+    await firstValueFrom(
+      this.httpService.patch(`${this.notificationServiceUrl}/notifications/${notificationId}/read`),
+    );
+  } catch (error) {
+    const err = error as AxiosError;
+    this.logger.error(`Notification read মার্ক করতে ব্যর্থ: ${err.message}`);
+  }
+}
+
+async getUnreadCount(email: string): Promise<number> {
+  try {
+    const response = await firstValueFrom(
+      this.httpService.get(`${this.notificationServiceUrl}/notifications/unread-count/${email}`),
+    );
+    return response.data.unreadCount;
+  } catch (error) {
+    const err = error as AxiosError;
+    this.logger.error(`Unread count আনতে ব্যর্থ: ${err.message}`);
+    return 0; // Go service down থাকলেও frontend ভেঙে পড়বে না, 0 দেখাবে
+  }
+}
 }
