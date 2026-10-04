@@ -13,6 +13,7 @@ import { Course } from '../teaching/entities/course.entity.js';
 import { Lesson } from '../teaching/entities/lesson.entity.js';
 import { NotificationService } from '../notification/notification.service.js';
 import { UserService } from '../user/user.service.js';
+import { SearchService } from '../search/search.service.js';
 
 @Injectable()
 export class LearningService {
@@ -23,6 +24,7 @@ export class LearningService {
     @InjectRepository(Lesson) private lessonRepository: Repository<Lesson>,
     private notificationService: NotificationService,
     private userService: UserService,
+    private searchService: SearchService,
   ) {}
 
   async enroll(courseId: number, studentId: number): Promise<Enrollment> {
@@ -38,13 +40,15 @@ export class LearningService {
     const enrollment = this.enrollmentRepository.create({ studentId, courseId });
     const saved = await this.enrollmentRepository.save(enrollment);
 
-    // notification পাঠানো - student এর email UserService দিয়ে বের করছি
     const student = await this.userService.findOne(studentId);
     await this.notificationService.send(
       student.email,
       'COURSE_ENROLLED',
       `তুমি সফলভাবে "${course.title}" কোর্সে enroll করেছ`,
     );
+
+    // enrollment সংখ্যা বেড়েছে, তাই search index (popularity sort এর জন্য) আপডেট করা হচ্ছে
+    await this.searchService.syncCourseIndex(courseId);
 
     return saved;
   }
@@ -89,14 +93,30 @@ export class LearningService {
       progress.completedAt = new Date();
     } else {
       progress = this.progressRepository.create({
-        enrollmentId,
-        lessonId,
-        completed: true,
-        completedAt: new Date(),
+        enrollmentId, lessonId, completed: true, completedAt: new Date(),
       });
     }
 
-    return this.progressRepository.save(progress);
+    const saved = await this.progressRepository.save(progress);
+    await this.checkAndIssueCertificate(enrollment, studentId);
+    return saved;
+  }
+
+  private async checkAndIssueCertificate(enrollment: Enrollment, studentId: number): Promise<void> {
+    const totalLessons = await this.lessonRepository.count({
+      where: { courseId: enrollment.courseId },
+    });
+    const completedLessons = await this.progressRepository.count({
+      where: { enrollmentId: enrollment.id, completed: true },
+    });
+
+    if (totalLessons > 0 && completedLessons === totalLessons) {
+      const student = await this.userService.findOne(studentId);
+      const course = await this.courseRepository.findOneBy({ id: enrollment.courseId });
+      if (course) {
+        await this.notificationService.requestCertificate(student.email, student.name, course.title);
+      }
+    }
   }
 
   async getProgressSummary(enrollmentId: number, studentId: number) {
@@ -105,11 +125,9 @@ export class LearningService {
     const totalLessons = await this.lessonRepository.count({
       where: { courseId: enrollment.courseId },
     });
-
     const completedLessons = await this.progressRepository.count({
       where: { enrollmentId, completed: true },
     });
-
     const percentage = totalLessons === 0 ? 0 : Math.round((completedLessons / totalLessons) * 100);
 
     return {

@@ -18,8 +18,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { Role } from '../common/enums/role.enum.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
-import { UpdateLessonDto } from './dto/update-course.dto.js';
 import { CreateLessonDto } from './dto/create-lesson.dto.js';
+import { UpdateLessonDto } from './dto/update-lesson.dto.js';
 
 
 @Controller('courses')
