@@ -6,6 +6,9 @@ import { AxiosError } from 'axios';
 
 @Injectable()
 export class NotificationService {
+  requestCertificate(email: string, name: string, title: string) {
+    throw new Error('Method not implemented.');
+  }
   private readonly logger = new Logger(NotificationService.name);
   private readonly notificationServiceUrl: string;
 

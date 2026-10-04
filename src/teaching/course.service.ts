@@ -4,26 +4,27 @@ import { Repository, Like } from 'typeorm';
 import { Course } from './entities/course.entity.js';
 import { Lesson } from './entities/lesson.entity.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
-import { QueryCourseDto } from './dto/query-course.dto.js';
-import { UpdateLessonDto } from './dto/update-course.dto.js';
+import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { CreateLessonDto } from './dto/create-lesson.dto.js';
-
+import { UpdateLessonDto } from './dto/update-lesson.dto.js';
+import { QueryCourseDto } from './dto/query-course.dto.js';
+import { SearchService } from '../search/search.service.js';
 
 @Injectable()
 export class CourseService {
   constructor(
-    @InjectRepository(Course)
-    private courseRepository: Repository<Course>,
-    @InjectRepository(Lesson)
-    private lessonRepository: Repository<Lesson>,
+    @InjectRepository(Course) private courseRepository: Repository<Course>,
+    @InjectRepository(Lesson) private lessonRepository: Repository<Lesson>,
+    private searchService: SearchService,
   ) {}
 
   async create(dto: CreateCourseDto, teacherId: number): Promise<Course> {
     const course = this.courseRepository.create({ ...dto, teacherId });
-    return this.courseRepository.save(course);
+    const saved = await this.courseRepository.save(course);
+    await this.searchService.syncCourseIndex(saved.id);
+    return saved;
   }
 
-  // পাবলিক লিস্টিং - pagination + search সহ, শুধু published কোর্স
   async findAll(query: QueryCourseDto) {
     const { page = 1, limit = 10, search } = query;
 
@@ -38,10 +39,7 @@ export class CourseService {
       order: { createdAt: 'DESC' },
     });
 
-    return {
-      data,
-      meta: { total, page, lastPage: Math.ceil(total / limit) },
-    };
+    return { data, meta: { total, page, lastPage: Math.ceil(total / limit) } };
   }
 
   async findMyCourses(teacherId: number): Promise<Course[]> {
@@ -55,13 +53,12 @@ export class CourseService {
   async findOne(id: number): Promise<Course> {
     const course = await this.courseRepository.findOne({
       where: { id },
-      relations: { teacher: true, lessons:true },
+      relations: { teacher: true, lessons: true },
     });
     if (!course) throw new NotFoundException(`Course with id ${id} পাওয়া যায়নি`);
     return course;
   }
 
-  // Object-level authorization - নিজের কোর্স ছাড়া কেউ এডিট করতে পারবে না
   private async verifyOwnership(courseId: number, teacherId: number): Promise<Course> {
     const course = await this.findOne(courseId);
     if (course.teacherId !== teacherId) {
@@ -70,28 +67,29 @@ export class CourseService {
     return course;
   }
 
-  async update(id: number, dto: CreateCourseDto, teacherId: number): Promise<Course> {
+  async update(id: number, dto: UpdateCourseDto, teacherId: number): Promise<Course> {
     const course = await this.verifyOwnership(id, teacherId);
     Object.assign(course, dto);
-    return this.courseRepository.save(course);
+    const saved = await this.courseRepository.save(course);
+    await this.searchService.syncCourseIndex(saved.id);
+    return saved;
   }
 
   async remove(id: number, teacherId: number): Promise<void> {
     await this.verifyOwnership(id, teacherId);
     await this.courseRepository.delete(id);
+    await this.searchService.removeFromIndex(id);
   }
 
   async addLesson(courseId: number, dto: CreateLessonDto, teacherId: number): Promise<Lesson> {
     await this.verifyOwnership(courseId, teacherId);
     const lesson = this.lessonRepository.create({ ...dto, courseId });
-    return this.lessonRepository.save(lesson);
+    const saved = await this.lessonRepository.save(lesson);
+    await this.searchService.syncCourseIndex(courseId); // lesson যোগ হলে lessonCount আপডেট হওয়া উচিত
+    return saved;
   }
 
-  async updateLesson(
-    lessonId: number,
-    dto: UpdateLessonDto,
-    teacherId: number,
-  ): Promise<Lesson> {
+  async updateLesson(lessonId: number, dto: UpdateLessonDto, teacherId: number): Promise<Lesson> {
     const lesson = await this.lessonRepository.findOne({
       where: { id: lessonId },
       relations: { course: true },
@@ -113,6 +111,8 @@ export class CourseService {
     if (lesson.course.teacherId !== teacherId) {
       throw new ForbiddenException('তুমি শুধু নিজের কোর্সের লেসন ডিলিট করতে পারবে');
     }
+    const courseId = lesson.courseId;
     await this.lessonRepository.delete(lessonId);
+    await this.searchService.syncCourseIndex(courseId); // lesson কমলে lessonCount আপডেট হওয়া উচিত
   }
 }
